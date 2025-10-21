@@ -193,9 +193,96 @@ app.get('/api/livekit/ingress', async (req, res) => {
 });
 
 app.post('/lk/join', async (req, res) => {
-  // 重定向到标准端点
-  req.url = '/api/livekit/join';
-  app.handle(req, res);
+  try {
+    const { roomName = 'digital-human-room', userName = 'user-' + Date.now(), participantName } = req.body;
+    
+    // 使用 participantName 或 userName 作为用户标识
+    const userIdentity = participantName || userName;
+    
+    // 生成访问令牌
+    const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+      identity: userIdentity,
+      name: userIdentity,
+    });
+
+    token.addGrant({
+      roomJoin: true,
+      room: roomName,
+      canSubscribe: true,
+      canPublish: true,
+    });
+
+    const jwt = await token.toJwt();
+
+    // 返回前端期望的格式
+    res.json({
+      success: true,
+      livekitUrl: LIVEKIT_URL,
+      token: jwt,
+      roomName: roomName,
+      participantName: userIdentity,
+      // 保持向后兼容
+      url: LIVEKIT_URL,
+      userName: userIdentity,
+      width: 1280,
+      height: 720
+    });
+
+    console.log(`用户 ${userIdentity} 加入房间 ${roomName}`);
+  } catch (error) {
+    console.error('生成令牌失败:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// 添加 /join 端点作为备用
+app.post('/join', async (req, res) => {
+  try {
+    const { roomName = 'digital-human-room', userName = 'user-' + Date.now(), participantName } = req.body;
+    
+    // 使用 participantName 或 userName 作为用户标识
+    const userIdentity = participantName || userName;
+    
+    // 生成访问令牌
+    const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+      identity: userIdentity,
+      name: userIdentity,
+    });
+
+    token.addGrant({
+      roomJoin: true,
+      room: roomName,
+      canSubscribe: true,
+      canPublish: true,
+    });
+
+    const jwt = await token.toJwt();
+
+    // 返回前端期望的格式
+    res.json({
+      success: true,
+      livekitUrl: LIVEKIT_URL,
+      token: jwt,
+      roomName: roomName,
+      participantName: userIdentity,
+      // 保持向后兼容
+      url: LIVEKIT_URL,
+      userName: userIdentity,
+      width: 1280,
+      height: 720
+    });
+
+    console.log(`用户 ${userIdentity} 加入房间 ${roomName}`);
+  } catch (error) {
+    console.error('生成令牌失败:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 });
 
 // RTC验证端点
