@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>通话式数字人播放器</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+    <!-- 删除：原本在 body 顶部的退出按钮 -->
+    <!-- <button id="exitBtn" class="exit-btn" aria-label="退出" title="退出">✕</button> -->
+
+    <!-- 视频区域 -->
+    <!-- .stage 容器内部 -->
+    <!-- 在 .stage 内、靠近其它控制按钮处插入麦克风按钮 -->
+    <div class="stage">
+        <!-- 新：把退出按钮放进 stage，便于与视频内容一起定位 -->
+        <button id="exitBtn" class="exit-btn" aria-label="退出" title="退出">✕</button>
+
+        <!-- 右上角打断按钮 -->
+        <button id="interruptBtn" class="interrupt-btn" aria-label="打断当前说话" title="打断当前说话" disabled>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="5" y="5" width="14" height="14" fill="currentColor"/>
+            </svg>
+            <span class="label">打断</span>
+        </button>
+        <button id="micBtn" class="mic-btn" aria-label="麦克风开关" title="麦克风开关">麦克风关</button>
+        <canvas id="videoCanvas" class="video"></canvas>
+        <!-- 优化video元素配置，改善初始化性能 -->
+        <video id="videoEl" 
+               autoplay 
+               playsinline 
+               muted="false"
+               preload="metadata"
+               style="object-fit: contain;"
+               webkit-playsinline="true"
+               x5-playsinline="true"></video>
+        <audio id="audioEl" autoplay preload="none"></audio>
+
+        <!-- 点击开启声音提示（透明） -->
+        <div id="audioOverlay" class="audio-overlay">点击以开启声音</div> 
+
+        <!-- 数字人回答：中间偏下，最多三行，最新一行在最后 -->
+        <div id="answerLines" class="answer-lines">
+            <div class="line" id="ansL1"></div>
+            <div class="line" id="ansL2"></div>
+            <div class="line" id="ansL3"></div>
+        </div>
+
+        <!-- 识别语音：最底部一行 -->
+        <div id="sttText" class="stt-text"></div>
+
+        <!-- 文本输入栏：前端发送文字到后端 -->
+        <div id="textInputBar" class="text-input-bar">
+            <input id="textInput" type="text" placeholder="输入文字..." />
+            <button id="sendBtn" class="send-btn">发送</button>
+        </div>
+
+        <!-- 中央通话控制：绿-开始，红-挂断（SVG 图标替换 emoji） -->
+        <button id="callBtn" class="call-btn start" aria-label="开始播放" title="开始播放">
+            <svg class="icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M14 8c1-1 2-1 3 0l5 5c1 1 1 2 0 3l-3 3c2 4 5 7 9 9l3-3c1-1 2-1 3 0l5 5c1 1 1 2 0 3l-2 2c-1 1-3 2-5 2C22 37 11 26 11 18c0-2 1-4 2-5l1-1z"/>
+            </svg>
+        </button>
+
+        <!-- 新增：聆听 HUD（三点动画 + 状态文案），持续显示 -->
+        <div id="listenHud" class="listen-hud" aria-live="polite">
+            <div class="dots"><span></span><span></span><span></span></div>
+            <div id="listenStatus" class="listen-text" role="status" aria-live="polite">聆听中</div>
+        </div>
+        <!-- 注意：这里原本有 id="loadingHint" 的顶端提示条，现已移除 -->
+
+        <!-- 新增：模板选择网格（覆盖式叠层） -->
+        <div id="templateGrid" class="template-grid" aria-hidden="true"></div>
+    </div>
+
+    <!-- 必要脚本：先加载渲染器与录音器，再加载 LiveKit 客户端，最后你的主脚本 -->
+    <!-- 页面底部脚本区 -->
+    <script src="js/video_renderer.js"></script>
+    <script src="js/recorder/recorder.wav.min.js"></script>
+    <script src="lib/livekit-client.umd.min.js"></script>
+    <script src="main.js"></script>
+    <script src="js/template_selector.js"></script>
+</body>
+</html>

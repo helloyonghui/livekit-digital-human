@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveKit 完整流程测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button, select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input, select {
+            width: 300px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status.connecting {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .rtmp-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        .step {
+            border-left: 4px solid #007bff;
+            padding-left: 15px;
+            margin: 20px 0;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .participants {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .participant {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .participant:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 LiveKit 完整流程测试</h1>
+        <p>测试从上游推流到前端观看的完整数据链路：<strong>RTMP推流 → LiveKit Ingress → LiveKit Room → H5前端</strong></p>
+    </div>
+
+    <div class="two-column">
+        <!-- 左侧：推流管理 -->
+        <div class="container">
+            <h2>📡 推流管理</h2>
+            
+            <div class="step">
+                <h3>步骤1: 创建推流接入点</h3>
+                <div class="form-group">
+                    <label for="roomName">房间名称:</label>
+                    <input type="text" id="roomName" value="test-room" placeholder="输入房间名称">
+                </div>
+                <div class="form-group">
+                    <label for="participantName">推流者名称:</label>
+                    <input type="text" id="participantName" value="digital-human" placeholder="输入推流者名称">
+                </div>
+                <button onclick="createIngress()">创建推流接入点</button>
+                <div id="ingressResult"></div>
+            </div>
+
+            <div class="step">
+                <h3>步骤2: 开始推流</h3>
+                <div id="rtmpInfo" style="display: none;">
+                    <p><strong>推流地址已生成，请选择推流方式：</strong></p>
+                    <button onclick="startPythonStream()">使用Python脚本推流</button>
+                    <button onclick="showManualInstructions()">手动推流说明</button>
+                </div>
+                <div id="manualInstructions" style="display: none;"></div>
+            </div>
+
+            <div class="step">
+                <h3>步骤3: 监控推流状态</h3>
+                <button onclick="checkRoomStatus()">检查房间状态</button>
+                <div id="roomStatus"></div>
+            </div>
+        </div>
+
+        <!-- 右侧：观看端 -->
+        <div class="container">
+            <h2>📺 观看端</h2>
+            
+            <div class="step">
+                <h3>连接设置</h3>
+                <div class="form-group">
+                    <label for="viewerRoom">房间名称:</label>
+                    <input type="text" id="viewerRoom" value="test-room" placeholder="输入要观看的房间">
+                </div>
+                <div class="form-group">
+                    <label for="viewerName">观看者名称:</label>
+                    <input type="text" id="viewerName" value="viewer-1" placeholder="输入观看者名称">
+                </div>
+                <button id="connectBtn" onclick="connectToRoom()">连接房间</button>
+                <button id="disconnectBtn" onclick="disconnectFromRoom()" disabled>断开连接</button>
+                <div class="status disconnected" id="connectionStatus">未连接</div>
+            </div>
+
+            <div class="step">
+                <h3>视频播放</h3>
+                <div class="video-container">
+                    <video id="remoteVideo" autoplay muted playsinline></video>
+                </div>
+                <div id="videoStatus">等待视频流...</div>
+            </div>
+
+            <div class="step">
+                <h3>参与者列表</h3>
+                <div class="participants" id="participantsList">
+                    <div class="participant">
+                        <span>暂无参与者</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📋 测试说明</h2>
+        <div class="info">
+            <strong>完整测试流程：</strong>
+            <ol>
+                <li><strong>创建推流接入点</strong>：点击"创建推流接入点"按钮，系统会生成RTMP推流地址</li>
+                <li><strong>开始推流</strong>：使用Python脚本或手动工具（OBS/FFmpeg）向生成的地址推流</li>
+                <li><strong>连接观看</strong>：在右侧输入相同房间名，点击"连接房间"</li>
+                <li><strong>验证流程</strong>：观看视频是否正常显示，检查参与者列表</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- 引入LiveKit客户端SDK -->
+    <script src="lib/livekit-client.umd.min.js"></script>
+    <script>
+        let room = null;
+        let currentIngressUrl = null;
+
+        // 创建推流接入点
+        async function createIngress() {
+            const roomName = document.getElementById('roomName').value;
+            const participantName = document.getElementById('participantName').value;
+            const resultDiv = document.getElementById('ingressResult');
+            
+            if (!roomName || !participantName) {
+                showMessage(resultDiv, '❌ 请填写房间名和参与者名称', 'error');
+                return;
+            }
+            
+            // 显示加载状态
+            showMessage(resultDiv, '🔄 正在创建推流接入点，请稍候...', 'info');
+            
+            try {
+                const response = await fetch('/api/livekit/ingress', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        roomName: roomName,
+                        participantName: participantName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    currentIngressUrl = data.ingress.rtmpUrl;
+                    
+                    const message = `✅ 推流接入点创建成功！
+房间: ${data.ingress.roomName}
+推流者: ${data.ingress.participantName}
+推流地址: ${data.ingress.rtmpUrl}
+推流密钥: ${data.ingress.streamKey}`;
+                    
+                    showMessage(resultDiv, message, 'success');
+                    
+                    // 显示推流选项
+                    document.getElementById('rtmpInfo').style.display = 'block';
+                    
+                    // 同步房间名到观看端
+                    document.getElementById('viewerRoom').value = roomName;
+                } else {
+                    let errorMsg = data.error || data.details || 'Unknown error';
+                    
+                    // 特殊处理速率限制错误
+                    if (errorMsg.includes('Rate limit') || errorMsg.includes('rate limit')) {
+                        errorMsg = '⏰ 请求过于频繁，请等待1-2分钟后再试';
+                    }
+                    
+                    showMessage(resultDiv, `❌ 创建失败: ${errorMsg}`, 'error');
+                }
+            } catch (error) {
+                console.error('创建 Ingress 时出错:', error);
+                showMessage(resultDiv, `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 启动Python推流脚本
+        function startPythonStream() {
+            const instructions = `
+🐍 Python推流脚本使用方法：
+
+1. 打开终端，进入项目目录
+2. 运行命令：python3 mock-rtmp-stream.py
+3. 脚本会自动创建测试视频并开始推流
+4. 在右侧连接房间观看效果
+
+注意：需要安装FFmpeg和requests库
+- macOS: brew install ffmpeg
+- pip install requests
+            `;
+            
+            document.getElementById('manualInstructions').innerHTML = 
+                `<div class="info">${instructions.replace(/\n/g, '<br>')}</div>`;
+            document.getElementById('manualInstructions').style.display = 'block';
+        }
+
+        // 显示手动推流说明
+        function showManualInstructions() {
+            if (!currentIngressUrl) {
+                alert('请先创建推流接入点');
+                return;
+            }
+
+            const instructions = `
+📺 手动推流说明：
+
+🎯 RTMP推流地址：
+${currentIngressUrl}
+
+🛠️ FFmpeg命令：
+ffmpeg -re -i your_video.mp4 -c:v libx264 -c:a aac -f flv ${currentIngressUrl}
+
+🎮 OBS设置：
+- 服务：自定义
+- 服务器：${currentIngressUrl.split('/').slice(0, -1).join('/')}
+- 推流码：${currentIngressUrl.split('/').pop()}
+
+📱 其他推流工具：
+支持任何RTMP推流工具，使用上述地址即可
+            `;
+            
+            document.getElementById('manualInstructions').innerHTML = 
+                `<div class="rtmp-info">${instructions.replace(/\n/g, '<br>')}</div>`;
+            document.getElementById('manualInstructions').style.display = 'block';
+        }
+
+        // 检查房间状态
+        async function checkRoomStatus() {
+            const roomName = document.getElementById('roomName').value;
+            const resultDiv = document.getElementById('roomStatus');
+            
+            if (!roomName) {
+                showMessage(resultDiv, '请输入房间名称', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/livekit/room/${roomName}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    let message = `🏠 房间: ${data.room.name}
+👥 参与者数量: ${data.room.numParticipants}
+⏰ 创建时间: ${new Date(data.room.creationTime * 1000).toLocaleString()}
+
+👤 参与者列表:`;
+                    
+                    if (data.room.participants.length === 0) {
+                        message += '\n  (暂无参与者)';
+                    } else {
+                        data.room.participants.forEach((participant, index) => {
+                            message += `\n  ${index + 1}. ${participant.name || participant.identity}`;
+                            message += `\n     状态: ${participant.state}`;
+                            message += `\n     轨道数: ${participant.tracks ? participant.tracks.length : 0}`;
+                        });
+                    }
+                    
+                    showMessage(resultDiv, message, 'success');
+                } else if (response.status === 404) {
+                    showMessage(resultDiv, `房间 "${roomName}" 不存在或暂无活动`, 'info');
+                } else {
+                    showMessage(resultDiv, `❌ 获取失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(resultDiv, `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 连接到LiveKit房间
+        async function connectToRoom() {
+            const roomName = document.getElementById('viewerRoom').value;
+            const participantName = document.getElementById('viewerName').value;
+            
+            if (!roomName || !participantName) {
+                alert('请输入房间名称和观看者名称');
+                return;
+            }
+
+            try {
+                updateConnectionStatus('connecting', '连接中...');
+                document.getElementById('connectBtn').disabled = true;
+                
+                // 获取访问令牌
+                const tokenResponse = await fetch('/api/livekit/join', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        roomName: roomName,
+                        participantName: participantName
+                    })
+                });
+
+                const tokenData = await tokenResponse.json();
+                
+                if (!tokenData.success) {
+                    throw new Error(tokenData.error || '获取访问令牌失败');
+                }
+
+                // 连接到房间
+                room = new LiveKit.Room();
+                
+                // 监听事件
+                room.on(LiveKit.RoomEvent.TrackSubscribed, handleTrackSubscribed);
+                room.on(LiveKit.RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+                room.on(LiveKit.RoomEvent.ParticipantConnected, updateParticipantsList);
+                room.on(LiveKit.RoomEvent.ParticipantDisconnected, updateParticipantsList);
+                room.on(LiveKit.RoomEvent.Connected, () => {
+                    updateConnectionStatus('connected', '已连接');
+                    document.getElementById('disconnectBtn').disabled = false;
+                    updateParticipantsList();
+                });
+                room.on(LiveKit.RoomEvent.Disconnected, () => {
+                    updateConnectionStatus('disconnected', '已断开');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    clearVideo();
+                    updateParticipantsList();
+                });
+
+                // 连接
+                await room.connect(tokenData.livekitUrl, tokenData.token);
+                
+            } catch (error) {
+                console.error('连接失败:', error);
+                updateConnectionStatus('disconnected', `连接失败: ${error.message}`);
+                document.getElementById('connectBtn').disabled = false;
+            }
+        }
+
+        // 断开连接
+        function disconnectFromRoom() {
+            if (room) {
+                room.disconnect();
+                room = null;
+            }
+        }
+
+        // 处理订阅的轨道
+        function handleTrackSubscribed(track, publication, participant) {
+            console.log('订阅到轨道:', track.kind, '来自:', participant.identity);
+            
+            if (track.kind === LiveKit.Track.Kind.Video) {
+                const videoElement = document.getElementById('remoteVideo');
+                track.attach(videoElement);
+                document.getElementById('videoStatus').textContent = `正在播放来自 ${participant.identity} 的视频`;
+            }
+        }
+
+        // 处理取消订阅的轨道
+        function handleTrackUnsubscribed(track, publication, participant) {
+            console.log('取消订阅轨道:', track.kind, '来自:', participant.identity);
+            
+            if (track.kind === LiveKit.Track.Kind.Video) {
+                track.detach();
+                document.getElementById('videoStatus').textContent = '等待视频流...';
+            }
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(status, message) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.className = `status ${status}`;
+            statusElement.textContent = message;
+        }
+
+        // 清除视频
+        function clearVideo() {
+            const videoElement = document.getElementById('remoteVideo');
+            videoElement.srcObject = null;
+            document.getElementById('videoStatus').textContent = '等待视频流...';
+        }
+
+        // 更新参与者列表
+        function updateParticipantsList() {
+            const listElement = document.getElementById('participantsList');
+            
+            if (!room || room.participants.size === 0) {
+                listElement.innerHTML = '<div class="participant"><span>暂无参与者</span></div>';
+                return;
+            }
+
+            let html = '';
+            room.participants.forEach((participant) => {
+                const videoTracks = Array.from(participant.videoTracks.values()).length;
+                const audioTracks = Array.from(participant.audioTracks.values()).length;
+                
+                html += `
+                    <div class="participant">
+                        <span>${participant.identity}</span>
+                        <span>视频:${videoTracks} 音频:${audioTracks}</span>
+                    </div>
+                `;
+            });
+            
+            listElement.innerHTML = html;
+        }
+
+        // 显示消息
+        function showMessage(element, message, type) {
+            element.innerHTML = `<div class="${type}">${message.replace(/\n/g, '<br>')}</div>`;
+        }
+
+        // 页面加载时的初始化
+        window.addEventListener('load', () => {
+            console.log('LiveKit 完整流程测试页面已加载');
+        });
+    </script>
+</body>
+</html>

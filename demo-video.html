@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demo Video</title>
+    <style>
+        body { margin: 0; background: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let frame = 0;
+        
+        function animate() {
+            // 清除画布
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制动画方块
+            const time = frame * 0.05;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            for (let i = 0; i < 5; i++) {
+                const angle = time + i * Math.PI * 2 / 5;
+                const x = centerX + Math.cos(angle) * 100;
+                const y = centerY + Math.sin(angle) * 100;
+                const size = 30 + Math.sin(time * 2 + i) * 10;
+                
+                ctx.fillStyle = `hsl(${(time * 50 + i * 60) % 360}, 70%, 60%)`;
+                ctx.fillRect(x - size/2, y - size/2, size, size);
+            }
+            
+            // 添加文字
+            ctx.fillStyle = '#fff';
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Demo Video Stream', centerX, centerY + 150);
+            
+            frame++;
+            requestAnimationFrame(animate);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>

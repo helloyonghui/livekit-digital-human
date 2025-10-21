@@ -1,0 +1,29 @@
+{
+  "name": "livekit-digital-human",
+  "version": "1.0.0",
+  "description": "LiveKit数字人应用",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'No build step required'",
+    "deploy": "echo 'Ready for deployment'",
+    "postinstall": "echo 'Installation complete'"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "livekit-server-sdk": "^1.2.7"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "livekit",
+    "webrtc",
+    "digital-human",
+    "video-streaming"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

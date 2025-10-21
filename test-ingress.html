@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveKit Ingress 测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input {
+            width: 300px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .rtmp-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .rtmp-url {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 5px;
+            border-radius: 3px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LiveKit Ingress 管理测试</h1>
+        <p>此页面用于测试LiveKit Ingress功能，创建RTMP推流接入点</p>
+    </div>
+
+    <div class="container">
+        <h2>1. 创建 Ingress</h2>
+        <div class="form-group">
+            <label for="roomName">房间名称:</label>
+            <input type="text" id="roomName" value="test-room" placeholder="输入房间名称">
+        </div>
+        <div class="form-group">
+            <label for="participantName">参与者名称:</label>
+            <input type="text" id="participantName" value="digital-human" placeholder="输入参与者名称">
+        </div>
+        <button onclick="createIngress()">创建 Ingress</button>
+        <div id="createResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>2. 查看所有 Ingress</h2>
+        <button onclick="listIngresses()">获取 Ingress 列表</button>
+        <div id="listResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>3. 查看房间信息</h2>
+        <div class="form-group">
+            <label for="queryRoomName">房间名称:</label>
+            <input type="text" id="queryRoomName" value="test-room" placeholder="输入要查询的房间名称">
+        </div>
+        <button onclick="getRoomInfo()">获取房间信息</button>
+        <div id="roomResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>4. 测试说明</h2>
+        <p><strong>完整测试流程：</strong></p>
+        <ol>
+            <li>点击"创建 Ingress"按钮，系统会创建一个RTMP推流接入点</li>
+            <li>复制返回的RTMP URL，使用OBS或FFmpeg进行推流测试</li>
+            <li>点击"获取房间信息"查看推流状态和参与者信息</li>
+            <li>在主页面(index.html)中加入相同房间，观看推流内容</li>
+        </ol>
+        <p><strong>FFmpeg推流命令示例：</strong></p>
+        <div class="rtmp-url">
+ffmpeg -re -i your_video.mp4 -c:v libx264 -c:a aac -f flv [RTMP_URL]
+        </div>
+    </div>
+
+    <script>
+        async function createIngress() {
+            const roomName = document.getElementById('roomName').value;
+            const participantName = document.getElementById('participantName').value;
+            const resultDiv = document.getElementById('createResult');
+            
+            if (!roomName) {
+                showResult(resultDiv, '请输入房间名称', 'error');
+                return;
+            }
+
+            try {
+                showResult(resultDiv, '正在创建 Ingress...', '');
+                
+                const response = await fetch('/api/livekit/ingress', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        roomName: roomName,
+                        participantName: participantName
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const result = `✅ Ingress 创建成功！
+
+📋 基本信息:
+- Ingress ID: ${data.ingress.ingressId}
+- 房间名称: ${data.ingress.roomName}
+- 参与者名称: ${data.ingress.participantName}
+
+🎥 推流信息:
+- RTMP URL: ${data.ingress.url}
+- Stream Key: ${data.ingress.streamKey}
+- 完整推流地址: ${data.ingress.rtmpUrl}
+
+📝 使用方法:
+1. 复制上面的完整推流地址
+2. 在OBS中设置为推流地址
+3. 或使用FFmpeg命令推流
+4. 在主页面加入房间 "${roomName}" 观看`;
+                    
+                    showResult(resultDiv, result, 'success');
+                } else {
+                    showResult(resultDiv, `❌ 创建失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(resultDiv, `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function listIngresses() {
+            const resultDiv = document.getElementById('listResult');
+            
+            try {
+                showResult(resultDiv, '正在获取 Ingress 列表...', '');
+                
+                const response = await fetch('/api/livekit/ingress');
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.ingresses.length === 0) {
+                        showResult(resultDiv, '📝 当前没有活跃的 Ingress', '');
+                    } else {
+                        let result = `📋 找到 ${data.ingresses.length} 个 Ingress:\n\n`;
+                        data.ingresses.forEach((ingress, index) => {
+                            result += `${index + 1}. ${ingress.name}
+   - ID: ${ingress.ingressId}
+   - 房间: ${ingress.roomName}
+   - 参与者: ${ingress.participantName}
+   - 状态: ${ingress.state}
+   - RTMP URL: ${ingress.url}
+   - Stream Key: ${ingress.streamKey}
+
+`;
+                        });
+                        showResult(resultDiv, result, 'success');
+                    }
+                } else {
+                    showResult(resultDiv, `❌ 获取失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(resultDiv, `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function getRoomInfo() {
+            const roomName = document.getElementById('queryRoomName').value;
+            const resultDiv = document.getElementById('roomResult');
+            
+            if (!roomName) {
+                showResult(resultDiv, '请输入房间名称', 'error');
+                return;
+            }
+
+            try {
+                showResult(resultDiv, '正在获取房间信息...', '');
+                
+                const response = await fetch(`/api/livekit/room/${roomName}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    let result = `🏠 房间信息: ${data.room.name}
+👥 参与者数量: ${data.room.numParticipants}
+⏰ 创建时间: ${new Date(data.room.creationTime * 1000).toLocaleString()}
+
+👤 参与者列表:
+`;
+                    if (data.room.participants.length === 0) {
+                        result += '  (暂无参与者)\n';
+                    } else {
+                        data.room.participants.forEach((participant, index) => {
+                            result += `  ${index + 1}. ${participant.name || participant.identity}
+     - 身份: ${participant.identity}
+     - 状态: ${participant.state}
+     - 轨道数: ${participant.tracks ? participant.tracks.length : 0}
+`;
+                            if (participant.tracks && participant.tracks.length > 0) {
+                                participant.tracks.forEach((track, trackIndex) => {
+                                    result += `       ${trackIndex + 1}) ${track.name} (${track.type}, ${track.source})\n`;
+                                });
+                            }
+                        });
+                    }
+                    
+                    showResult(resultDiv, result, 'success');
+                } else if (response.status === 404) {
+                    showResult(resultDiv, `📝 房间 "${roomName}" 不存在或暂无活动`, '');
+                } else {
+                    showResult(resultDiv, `❌ 获取失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(resultDiv, `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+
+        function showResult(element, message, type) {
+            element.style.display = 'block';
+            element.textContent = message;
+            element.className = 'result ' + type;
+        }
+
+        // 页面加载时自动获取现有的Ingress列表
+        window.addEventListener('load', () => {
+            listIngresses();
+        });
+    </script>
+</body>
+</html>
