@@ -198,6 +198,15 @@ app.post('/lk/join', async (req, res) => {
   app.handle(req, res);
 });
 
+// RTC验证端点
+app.get('/rtc/validate', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    service: 'livekit-rtc',
+    timestamp: new Date().toISOString() 
+  });
+});
+
 // 健康检查
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
